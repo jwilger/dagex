@@ -24,3 +24,6 @@ dagex-*.tar
 
 # Temporary files, for example, from tests.
 /tmp/
+
+# Local environment vars
+.envrc
