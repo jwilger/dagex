@@ -71,7 +71,7 @@ defmodule MyApp.Repo.Migrations.AddOrganizations do
     
     # Adds triggers to the "organizations" table to maintain the associated DAG as
     # records are added/removed.
-    Dagex.Migrations.setup_node_type("organizations")
+    Dagex.Migrations.setup_node_type("organizations", "1.0.0")
   end
 end
 ```

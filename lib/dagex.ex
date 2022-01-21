@@ -44,7 +44,7 @@ defmodule Dagex do
       end
 
       create index("animal_types", :name, unique: true)
-      Dagex.Migrations.setup_node_type("animal_types")
+      Dagex.Migrations.setup_node_type("animal_types", "1.0.0")
     end
   end
   ```
