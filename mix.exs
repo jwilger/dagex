@@ -4,9 +4,14 @@ defmodule Dagex.MixProject do
   def project do
     [
       name: "dagex",
+      description:
+        "Implement directed, acyclic graphs for Ecto models using PostrgreSQL's ltree extension.",
       source_url: "https://github.com/jwilger/dagex",
       homepage_url: "https://github.com/jwilger/dagex",
-      licenses: ["Apache-2.0"],
+      package: [
+        licenses: ["Apache-2.0"],
+        links: []
+      ],
       app: :dagex,
       version: "1.0.0",
       elixir: "~> 1.13",
@@ -81,7 +86,6 @@ defmodule Dagex.MixProject do
       {:assertions, "~> 0.19", only: :test},
       {:credo, "~> 1.1", only: [:dev, :test], runtime: false},
       {:dialyxir, "~> 1.0", only: [:dev, :test], runtime: false},
-      {:ecto_ltree, "~> 0.3"},
       {:ecto_sql, "~> 3.6"},
       {:ex_doc, "~> 0.21", only: [:dev, :test], runtime: false},
       {:postgrex, ">= 0.0.0"},
