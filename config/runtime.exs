@@ -2,10 +2,11 @@ import Config
 
 case Mix.env() do
   :test ->
-    config :dagex, DAGEx.TestRepo,
+    config :dagex, DagexTest.Repo,
       adapter: Ecto.Adapters.Postgres,
       url: System.get_env("TEST_DATABASE_URL"),
-      pool: Ecto.Adapters.SQL.Sandbox
+      pool: Ecto.Adapters.SQL.Sandbox,
+      types: Dagex.PostgresTypes
 
     config :logger, level: String.to_existing_atom(System.get_env("LOG_LEVEL", "info"))
 
