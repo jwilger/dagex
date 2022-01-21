@@ -36,7 +36,7 @@ defmodule Dagex.MixProject do
       ],
       docs: [
         main: "readme",
-        extras: ["README.md"],
+        extras: ["README.md", "LICENSE"],
         markdown_processor: {ExDoc.Markdown.Earmark, footnotes: true},
         before_closing_head_tag: &before_closing_head_tag/1
       ]
