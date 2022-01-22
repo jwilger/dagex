@@ -29,6 +29,7 @@ defmodule Dagex.TestRepo.Migrations.V1_0_0 do
   end
 
   def down do
+    drop(table("animal_types"))
     drop(table("type_as"))
     drop(table("type_bs"))
     Dagex.Migrations.down()
