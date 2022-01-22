@@ -4,6 +4,9 @@ defmodule Dagex do
   directed, acyclic graphs backed by [PostgreSQL's ltree
   extenstion](https://www.postgresql.org/docs/14/ltree.html).
 
+  N.B. The callbacks defined in this module are automatically defined for you on
+  your Ecto models when you `use Dagex` inside them.
+
   ## Installation
 
   See the instructions in the project's [README](README.md) to perform initial
@@ -160,6 +163,13 @@ defmodule Dagex do
     )
   end
 
+  @doc """
+  Returns a query that can be passed to your application's Ecto repository
+  to retrieve a list of entities of the type defined in this module that are
+  at the top level of the DAG (i.e. have no other parents.)
+  """
+  @callback roots() :: Ecto.Queryable.t()
+
   @doc false
   @spec children(module(), struct()) :: Ecto.Queryable.t()
   def children(module, parent) do
@@ -180,6 +190,13 @@ defmodule Dagex do
           child_nodes.node_type == ^node_type
     )
   end
+
+  @doc """
+  Returns a query that can be passed to your application's Ecto repository
+  to retrieve a list of entities that are children of the specified parent
+  entity.
+  """
+  @callback children(parent :: Ecto.Schema.t()) :: Ecto.Queryable.t()
 
   @doc false
   @spec descendants(module(), struct()) :: Ecto.Queryable.t()
@@ -207,6 +224,13 @@ defmodule Dagex do
     )
   end
 
+  @doc """
+  Returns a query that can be passed to your application's Ecto repository
+  to retrieve a list of entities that are descendants of the specified parent
+  entity.
+  """
+  @callback descendants(parent :: Ecto.Schema.t()) :: Ecto.Queryable.t()
+
   @doc false
   @spec succeeds?(module(), struct(), struct()) :: Ecto.Queryable.t()
   def succeeds?(module, descendant, ancestor) do
@@ -216,6 +240,13 @@ defmodule Dagex do
     descendants(module, ancestor)
     |> where([m], field(m, ^primary_key_field) == ^descendant_id)
   end
+
+  @doc """
+  Returns a query that selects descendant only if descendant is a descendant
+  of ancestor.
+  """
+  @callback succeeds?(descendant :: Ecto.Schema.t(), ancestor :: Ecto.Schema.t()) ::
+              Ecto.Queryable.t()
 
   @doc false
   @spec parents(module(), struct()) :: Ecto.Queryable.t()
@@ -240,6 +271,13 @@ defmodule Dagex do
           child_nodes.node_type == ^node_type
     )
   end
+
+  @doc """
+  Returns a query that can be passed to your application's Ecto repository
+  to retrieve a list of entities that are parents of the specified child
+  entity.
+  """
+  @callback parents(child :: Ecto.Schema.t()) :: Ecto.Queryable.t()
 
   @doc false
   @spec ancestors(module(), struct()) :: Ecto.Queryable.t()
@@ -267,6 +305,13 @@ defmodule Dagex do
     )
   end
 
+  @doc """
+  Returns a query that can be passed to your application's Ecto repository
+  to retrieve a list of entities that are ancestors of the specified child
+  entity.
+  """
+  @callback ancestors(child :: Ecto.Schema.t()) :: Ecto.Queryable.t()
+
   @doc false
   @spec precedes?(module(), struct(), struct()) :: Ecto.Queryable.t()
   def precedes?(module, ancestor, descendant) do
@@ -277,11 +322,25 @@ defmodule Dagex do
     |> where([m], field(m, ^primary_key_field) == ^ancestor_id)
   end
 
+  @doc """
+  Returns a query that selects ancestor only if ancestor is an ancestor
+  of descendant.
+  """
+  @callback precedes?(ancestor :: Ecto.Schema.t(), descendant :: Ecto.Schema.t()) ::
+              Ecto.Queryable.t()
+
   @doc false
   @spec create_edge(struct(), struct()) :: CreateEdge.t()
   def create_edge(parent, child) do
     CreateEdge.new(parent, child)
   end
+
+  @doc """
+  Returns a `Dagex.Operations.CreateEdge` struct to be passed to
+  `Dagex.Repo.dagex_update/2` that will attempt to create a new edge in
+  the implementing module's associated DAG.
+  """
+  @callback create_edge(parent :: Ecto.Schema.t(), child :: Ecto.Schema.t()) :: CreateEdge.t()
 
   @doc false
   @spec remove_edge(struct(), struct()) :: RemoveEdge.t()
@@ -289,184 +348,46 @@ defmodule Dagex do
     RemoveEdge.new(parent, child)
   end
 
+  @doc """
+  Returns a `Dagex.Operations.RemoveEdge` struct to be passed to
+  `Dagex.Repo.dagex_update/2` that will attempt to remove the specified edge
+  from the implementing module's associated DAG.
+  """
+  @callback remove_edge(parent :: Ecto.Schema.t(), child :: Ecto.Schema.t()) :: RemoveEdge.t()
+
   @doc false
   @spec __using__(keyword()) :: Macro.t()
   defmacro __using__(_opts) do
     caller_module = __CALLER__.module |> to_string() |> String.replace_leading("Elixir.", "")
 
     quote generated: true, bind_quoted: [caller_module: caller_module] do
-      @doc """
-      Returns a query that can be passed to your application's Ecto repository
-      to retrieve a list of entities of the type defined in this module that are
-      at the top level of the DAG (i.e. have no other parents.)
+      @behaviour Dagex
 
-      ## Example
-
-          iex> [a_root_entity | _rest] #{caller_module}.roots() |> Repo.all()
-          iex> #{caller_module}.parents(a_root_entity) |> Repo.all()
-          []
-      """
-      @spec roots() :: Ecto.Queryable.t()
+      @impl Dagex
       def roots, do: Dagex.roots(__MODULE__)
 
-      @doc """
-      Returns a query that can be passed to your application's Ecto repository
-      to retrieve a list of entities that are children of the specified parent
-      entity.
-
-      ## Example
-
-          iex> {:ok, entity_a} = %#{caller_module}{name: "a"} |> Repo.insert()
-          iex> {:ok, entity_b} = %#{caller_module}{name: "b"} |> Repo.insert()
-          iex> {:ok, entity_c} = %#{caller_module}{name: "c"} |> Repo.insert()
-          iex> {:edge_created, _edge} = #{caller_module}.create_edge(entity_a, entity_b)
-          ...>   |> Repo.dagex_update()
-          iex> {:edge_created, _edge} = #{caller_module}.create_edge(entity_a, entity_c)
-          ...>   |> Repo.dagex_update()
-          iex> #{caller_module}.children(entity_a) |> Repo.all()
-          [entity_b, entity_c]
-
-      """
-      @spec children(%__MODULE__{}) :: Ecto.Queryable.t()
+      @impl Dagex
       def children(parent), do: Dagex.children(__MODULE__, parent)
 
-      @doc """
-      Returns a query that can be passed to your application's Ecto repository
-      to retrieve a list of entities that are descendants of the specified parent
-      entity.
-
-      ## Example
-
-          iex> {:ok, entity_a} = %#{caller_module}{name: "a"} |> Repo.insert()
-          iex> {:ok, entity_b} = %#{caller_module}{name: "b"} |> Repo.insert()
-          iex> {:ok, entity_c} = %#{caller_module}{name: "c"} |> Repo.insert()
-          iex> {:edge_created, _edge} = #{caller_module}.create_edge(entity_a, entity_b)
-          ...>   |> Repo.dagex_update()
-          iex> {:edge_created, _edge} = #{caller_module}.create_edge(entity_b, entity_c)
-          ...>   |> Repo.dagex_update()
-          iex> #{caller_module}.descendants(entity_a) |> Repo.all()
-          [entity_b, entity_c]
-
-      """
-      @spec descendants(%__MODULE__{}) :: Ecto.Queryable.t()
+      @impl Dagex
       def descendants(parent), do: Dagex.descendants(__MODULE__, parent)
 
-      @doc """
-      Returns a query that selects descendant only if descendant is a descendant
-      of ancestor.
-
-      ## Example
-
-          iex> {:ok, entity_a} = %#{caller_module}{name: "a"} |> Repo.insert()
-          iex> {:ok, entity_b} = %#{caller_module}{name: "b"} |> Repo.insert()
-          iex> {:ok, entity_c} = %#{caller_module}{name: "c"} |> Repo.insert()
-          iex> {:edge_created, _edge} = #{caller_module}.create_edge(entity_a, entity_b)
-          ...>   |> Repo.dagex_update()
-          iex> {:edge_created, _edge} = #{caller_module}.create_edge(entity_b, entity_c)
-          ...>   |> Repo.dagex_update()
-          iex> #{caller_module}.succeeds?(entity_c, entity_a) |> Repo.one()
-          entity_c
-          iex> #{caller_module}.succeeds?(entity_a, entity_c) |> Repo.one()
-          nil
-      """
-      @spec succeeds?(descendant :: %__MODULE__{}, ancestor :: %__MODULE__{}) ::
-              Ecto.Queryable.t()
+      @impl Dagex
       def succeeds?(descendant, ancestor), do: Dagex.succeeds?(__MODULE__, descendant, ancestor)
 
-      @doc """
-      Returns a query that can be passed to your application's Ecto repository
-      to retrieve a list of entities that are parents of the specified child
-      entity.
-
-      ## Example
-
-          iex> {:ok, entity_a} = %#{caller_module}{name: "a"} |> Repo.insert()
-          iex> {:ok, entity_b} = %#{caller_module}{name: "b"} |> Repo.insert()
-          iex> {:ok, entity_c} = %#{caller_module}{name: "c"} |> Repo.insert()
-          iex> {:edge_created, _edge} = #{caller_module}.create_edge(entity_a, entity_c)
-          ...>   |> Repo.dagex_update()
-          iex> {:edge_created, _edge} = #{caller_module}.create_edge(entity_b, entity_c)
-          ...>   |> Repo.dagex_update()
-          iex> #{caller_module}.parents(entity_c) |> Repo.all()
-          [entity_a, entity_b]
-
-      """
-      @spec parents(%__MODULE__{}) :: Ecto.Queryable.t()
+      @impl Dagex
       def parents(child), do: Dagex.parents(__MODULE__, child)
 
-      @doc """
-      Returns a query that can be passed to your application's Ecto repository
-      to retrieve a list of entities that are ancestors of the specified child
-      entity.
-
-      ## Example
-
-          iex> {:ok, entity_a} = %#{caller_module}{name: "a"} |> Repo.insert()
-          iex> {:ok, entity_b} = %#{caller_module}{name: "b"} |> Repo.insert()
-          iex> {:ok, entity_c} = %#{caller_module}{name: "c"} |> Repo.insert()
-          iex> {:edge_created, _edge} = #{caller_module}.create_edge(entity_a, entity_b)
-          ...>   |> Repo.dagex_update()
-          iex> {:edge_created, _edge} = #{caller_module}.create_edge(entity_b, entity_c)
-          ...>   |> Repo.dagex_update()
-          iex> #{caller_module}.ancestors(entity_c) |> Repo.all()
-          [entity_a, entity_b]
-
-      """
-      @spec ancestors(%__MODULE__{}) :: Ecto.Queryable.t()
+      @impl Dagex
       def ancestors(child), do: Dagex.ancestors(__MODULE__, child)
 
-      @doc """
-      Returns a query that selects ancestor only if ancestor is an ancestor
-      of descendant.
-
-      ## Example
-
-          iex> {:ok, entity_a} = %#{caller_module}{name: "a"} |> Repo.insert()
-          iex> {:ok, entity_b} = %#{caller_module}{name: "b"} |> Repo.insert()
-          iex> {:ok, entity_c} = %#{caller_module}{name: "c"} |> Repo.insert()
-          iex> {:edge_created, _edge} = #{caller_module}.create_edge(entity_a, entity_b)
-          ...>   |> Repo.dagex_update()
-          iex> {:edge_created, _edge} = #{caller_module}.create_edge(entity_b, entity_c)
-          ...>   |> Repo.dagex_update()
-          iex> #{caller_module}.precedes?(entity_c, entity_a) |> Repo.one()
-          nil
-          iex> #{caller_module}.succeeds?(entity_a, entity_c) |> Repo.one()
-          entity_a
-      """
-      @spec precedes?(ancestor :: %__MODULE__{}, descendant :: %__MODULE__{}) ::
-              Ecto.Queryable.t()
+      @impl Dagex
       def precedes?(ancestor, descendant), do: Dagex.precedes?(__MODULE__, ancestor, descendant)
 
-      @doc """
-      Returns a `Dagex.Operations.CreateEdge` struct to be passed to
-      `Dagex.Repo.dagex_update/2` that will attempt to create a new edge in
-      `#{caller_module}`'s DAG.
-
-      ## Example
-
-          iex> {:ok, entity_a} = %#{caller_module}{name: "a"} |> Repo.insert()
-          iex> {:ok, entity_b} = %#{caller_module}{name: "b"} |> Repo.insert()
-          iex> #{caller_module}.create_edge(entity_a, entity_b) |> Repo.dagex_update()
-          {:edge_created, {entity_a, entity_b}}
-      """
-      @spec create_edge(%__MODULE__{}, %__MODULE__{}) :: CreateEdge.t()
+      @impl Dagex
       defdelegate create_edge(parent, child), to: Dagex
 
-      @doc """
-      Returns a `Dagex.Operations.RemoveEdge` struct to be passed to
-      `Dagex.Repo.dagex_update/2` that will attempt to remove the specified edge
-      from `#{caller_module}`'s DAG.
-
-      ## Example
-
-          iex> {:ok, entity_a} = %#{caller_module}{name: "a"} |> Repo.insert()
-          iex> {:ok, entity_b} = %#{caller_module}{name: "b"} |> Repo.insert()
-          iex> {:edge_created, _edge} = #{caller_module}.create_edge(entity_a, entity_b)
-          ...>   |> Repo.dagex_update()
-          iex> #{caller_module}.remove_edge(entity_a, entity_b) |> Repo.dagex_update()
-          {:edge_removed, {entity_a, entity_b}}
-      """
-      @spec remove_edge(%__MODULE__{}, %__MODULE__{}) :: RemoveEdge.t()
+      @impl Dagex
       defdelegate remove_edge(parent, child), to: Dagex
     end
   end
