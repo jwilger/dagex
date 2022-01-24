@@ -119,9 +119,17 @@ defmodule Dagex do
       iex> descendants = AnimalType.descendants(pet) |> Repo.all()
       iex> assert_lists_equal(descendants, [cat, dog, sheep, doberman, bulldog])
       iex>
+      iex> # we can also get the descendants including the node itself
+      iex> descendants = AnimalType.with_descendants(pet) |> Repo.all()
+      iex> assert_lists_equal(descendants, [pet, cat, dog, sheep, doberman, bulldog])
+      iex>
       iex> # we can get all ancestors of a node
       iex> ancestors = AnimalType.ancestors(bulldog) |> Repo.all()
       iex> assert_lists_equal(ancestors, [dog, pet, livestock, animal])
+      iex>
+      iex> # we can also get the ancestors including the node itself
+      iex> ancestors = AnimalType.with_ancestors(bulldog) |> Repo.all()
+      iex> assert_lists_equal(ancestors, [bulldog, dog, pet, livestock, animal])
       iex>
       iex> # we can determine if node A precedes (i.e. is an ancestor of) node B
       iex> true = AnimalType.precedes?(pet, bulldog) |> Repo.exists?()
@@ -201,6 +209,21 @@ defmodule Dagex do
   @doc false
   @spec descendants(module(), struct()) :: Ecto.Queryable.t()
   def descendants(module, parent) do
+    from([d, dn, dp, pp, pn] in with_descendants(module, parent),
+      where: dn.id != pn.id
+    )
+  end
+
+  @doc """
+  Returns a query that can be passed to your application's Ecto repository
+  to retrieve a list of entities that are descendants of the specified parent
+  entity.
+  """
+  @callback descendants(parent :: Ecto.Schema.t()) :: Ecto.Queryable.t()
+
+  @doc false
+  @spec with_descendants(module(), struct()) :: Ecto.Queryable.t()
+  def with_descendants(module, parent) do
     node_type = module.__schema__(:source)
     primary_key_field = module.__schema__(:primary_key) |> List.first()
     parent_id = Map.fetch!(parent, primary_key_field) |> to_string()
@@ -219,17 +242,16 @@ defmodule Dagex do
       where:
         parent_nodes.ext_id == fragment("?::text", ^parent_id) and
           parent_nodes.node_type == ^node_type and
-          descendant_nodes.node_type == ^node_type and
-          descendant_nodes.id != parent_nodes.id
+          descendant_nodes.node_type == ^node_type
     )
   end
 
   @doc """
   Returns a query that can be passed to your application's Ecto repository
   to retrieve a list of entities that are descendants of the specified parent
-  entity.
+  entity along with the parent entity itself.
   """
-  @callback descendants(parent :: Ecto.Schema.t()) :: Ecto.Queryable.t()
+  @callback with_descendants(parent :: Ecto.Schema.t()) :: Ecto.Queryable.t()
 
   @doc false
   @spec succeeds?(module(), struct(), struct()) :: Ecto.Queryable.t()
@@ -282,6 +304,21 @@ defmodule Dagex do
   @doc false
   @spec ancestors(module(), struct()) :: Ecto.Queryable.t()
   def ancestors(module, child) do
+    from([a, an, ap, cp, cn] in with_ancestors(module, child),
+      where: an.id != cn.id
+    )
+  end
+
+  @doc """
+  Returns a query that can be passed to your application's Ecto repository
+  to retrieve a list of entities that are ancestors of the specified child
+  entity.
+  """
+  @callback ancestors(child :: Ecto.Schema.t()) :: Ecto.Queryable.t()
+
+  @doc false
+  @spec with_ancestors(module(), struct()) :: Ecto.Queryable.t()
+  def with_ancestors(module, child) do
     node_type = module.__schema__(:source)
     primary_key_field = module.__schema__(:primary_key) |> List.first()
     child_id = Map.fetch!(child, primary_key_field) |> to_string()
@@ -300,17 +337,16 @@ defmodule Dagex do
       where:
         child_nodes.ext_id == fragment("?::text", ^child_id) and
           ancestor_nodes.node_type == ^node_type and
-          child_nodes.node_type == ^node_type and
-          ancestor_nodes.id != child_nodes.id
+          child_nodes.node_type == ^node_type
     )
   end
 
   @doc """
   Returns a query that can be passed to your application's Ecto repository
   to retrieve a list of entities that are ancestors of the specified child
-  entity.
+  entity as well as the child entity itself.
   """
-  @callback ancestors(child :: Ecto.Schema.t()) :: Ecto.Queryable.t()
+  @callback with_ancestors(child :: Ecto.Schema.t()) :: Ecto.Queryable.t()
 
   @doc false
   @spec precedes?(module(), struct(), struct()) :: Ecto.Queryable.t()
@@ -373,6 +409,9 @@ defmodule Dagex do
       def descendants(parent), do: Dagex.descendants(__MODULE__, parent)
 
       @impl Dagex
+      def with_descendants(parent), do: Dagex.with_descendants(__MODULE__, parent)
+
+      @impl Dagex
       def succeeds?(descendant, ancestor), do: Dagex.succeeds?(__MODULE__, descendant, ancestor)
 
       @impl Dagex
@@ -380,6 +419,9 @@ defmodule Dagex do
 
       @impl Dagex
       def ancestors(child), do: Dagex.ancestors(__MODULE__, child)
+
+      @impl Dagex
+      def with_ancestors(child), do: Dagex.with_ancestors(__MODULE__, child)
 
       @impl Dagex
       def precedes?(ancestor, descendant), do: Dagex.precedes?(__MODULE__, ancestor, descendant)

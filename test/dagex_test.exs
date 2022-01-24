@@ -347,6 +347,33 @@ defmodule DagexTest do
     end
   end
 
+  describe "with_ancestors/1" do
+    test "returns a list of all ancestors of the given node including the given node" do
+      {:ok, entity_a} = %TypeA{foo: "a"} |> Repo.insert()
+      {:ok, entity_b} = %TypeA{foo: "b"} |> Repo.insert()
+      {:ok, entity_c} = %TypeA{foo: "c"} |> Repo.insert()
+      {:ok, entity_d} = %TypeA{foo: "d"} |> Repo.insert()
+      {:ok, entity_e} = %TypeA{foo: "e"} |> Repo.insert()
+      {:edge_created, _edge} = TypeA.create_edge(entity_a, entity_b) |> Repo.dagex_update()
+      {:edge_created, _edge} = TypeA.create_edge(entity_b, entity_d) |> Repo.dagex_update()
+      {:edge_created, _edge} = TypeA.create_edge(entity_c, entity_d) |> Repo.dagex_update()
+      {:edge_created, _edge} = TypeA.create_edge(entity_d, entity_e) |> Repo.dagex_update()
+
+      ancestors = TypeA.with_ancestors(entity_d) |> Repo.all()
+
+      assert 4 == Enum.count(ancestors)
+      assert entity_a in ancestors
+      assert entity_b in ancestors
+      assert entity_c in ancestors
+      assert entity_d in ancestors
+    end
+
+    test "returns a list containing only the given node if the given node has no ancestors" do
+      {:ok, entity_a} = %TypeA{foo: "bar"} |> Repo.insert()
+      assert [entity_a] == TypeA.with_ancestors(entity_a) |> Repo.all()
+    end
+  end
+
   describe "descendants/1" do
     test "returns a list of nodes that are descendants of the given node" do
       {:ok, entity_a} = %TypeA{foo: "a"} |> Repo.insert()
@@ -370,6 +397,33 @@ defmodule DagexTest do
     test "returns an empty list if the given node has no children" do
       {:ok, entity_a} = %TypeA{foo: "bar"} |> Repo.insert()
       assert [] == TypeA.descendants(entity_a) |> Repo.all()
+    end
+  end
+
+  describe "with_descendants/1" do
+    test "returns a list of nodes that are descendants of the given node and includes the given node" do
+      {:ok, entity_a} = %TypeA{foo: "a"} |> Repo.insert()
+      {:ok, entity_b} = %TypeA{foo: "b"} |> Repo.insert()
+      {:ok, entity_c} = %TypeA{foo: "c"} |> Repo.insert()
+      {:ok, entity_d} = %TypeA{foo: "d"} |> Repo.insert()
+      {:ok, entity_e} = %TypeA{foo: "e"} |> Repo.insert()
+      {:edge_created, _edge} = TypeA.create_edge(entity_a, entity_b) |> Repo.dagex_update()
+      {:edge_created, _edge} = TypeA.create_edge(entity_b, entity_c) |> Repo.dagex_update()
+      {:edge_created, _edge} = TypeA.create_edge(entity_b, entity_d) |> Repo.dagex_update()
+      {:edge_created, _edge} = TypeA.create_edge(entity_c, entity_e) |> Repo.dagex_update()
+
+      descendants = TypeA.with_descendants(entity_b) |> Repo.all()
+
+      assert 4 == Enum.count(descendants)
+      assert entity_b in descendants
+      assert entity_c in descendants
+      assert entity_d in descendants
+      assert entity_e in descendants
+    end
+
+    test "returns a list containing only the given node if the given node has no children" do
+      {:ok, entity_a} = %TypeA{foo: "bar"} |> Repo.insert()
+      assert [entity_a] == TypeA.with_descendants(entity_a) |> Repo.all()
     end
   end
 end
