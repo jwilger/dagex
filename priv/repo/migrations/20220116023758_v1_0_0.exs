@@ -8,13 +8,13 @@ defmodule Dagex.TestRepo.Migrations.V1_0_0 do
     Dagex.Migrations.up()
 
     create table("type_as") do
-      add(:foo, :string)
+      add(:name, :string)
     end
 
     Dagex.Migrations.setup_node_type("type_as", "1.0.0")
 
     create table("type_bs") do
-      add(:foo, :string)
+      add(:name, :string)
     end
 
     Dagex.Migrations.setup_node_type("type_bs", "1.0.0")

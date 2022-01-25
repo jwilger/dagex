@@ -3,6 +3,6 @@ defmodule DagexTest.TypeB do
   use Ecto.Schema
 
   schema "type_bs" do
-    field(:foo, :string)
+    field(:name, :string)
   end
 end
