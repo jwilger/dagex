@@ -38,8 +38,6 @@ defmodule Dagex do
 
   ```elixir
   defmodule DagexTest.Repo.Migrations.AddAnimalTypes do
-    require Dagex.Migrations
-
     def change do
       create table("animal_types") do
         add :name, :string, null: false
