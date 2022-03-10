@@ -87,6 +87,7 @@ defmodule Dagex.MixProject do
       {:credo, "~> 1.1", only: [:dev, :test], runtime: false},
       {:dialyxir, "~> 1.0", only: [:dev, :test], runtime: false},
       {:ecto_sql, "~> 3.6"},
+      {:ecto_ltree, "~> 0.3.0"},
       {:ex_doc, "~> 0.21", only: [:dev, :test], runtime: false},
       {:postgrex, ">= 0.0.0"},
       {:typed_ecto_schema, "~> 0.3"}
