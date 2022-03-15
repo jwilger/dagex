@@ -26,6 +26,14 @@ defmodule Dagex.TestRepo.Migrations.V1_0_0 do
 
     create(index("animal_types", :name, unique: true))
     Dagex.Migrations.setup_node_type("animal_types", "1.0.0")
+
+    create table("type_cs", primary_key: false) do
+      add(:id, :uuid, null: false, primary_key: true)
+      add(:name, :string)
+    end
+
+    create(index("type_cs", :name, unique: true))
+    Dagex.Migrations.setup_node_type("type_cs", "1.0.0")
   end
 
   def down do

@@ -95,6 +95,14 @@ defmodule DagexTest do
         TypeA.create_edge(entity_a, entity_b) |> Repo.dagex_update()
     end
 
+    test "also works when entities use UUID primary keys" do
+      {:ok, entity_a} = %TypeC{name: "bar"} |> Repo.insert()
+      {:ok, entity_b} = %TypeC{name: "baz"} |> Repo.insert()
+
+      {:edge_created, {^entity_a, ^entity_b}} =
+        TypeC.create_edge(entity_a, entity_b) |> Repo.dagex_update()
+    end
+
     test "creating an edge is idempotent" do
       {:ok, entity_a} = %TypeA{name: "bar"} |> Repo.insert()
       {:ok, entity_b} = %TypeA{name: "baz"} |> Repo.insert()
@@ -424,6 +432,74 @@ defmodule DagexTest do
     test "returns a list containing only the given node if the given node has no children" do
       {:ok, entity_a} = %TypeA{name: "bar"} |> Repo.insert()
       assert [entity_a] == TypeA.with_descendants(entity_a) |> Repo.all()
+    end
+  end
+
+  describe "precedes?/2" do
+    test "returns true if ancestor is an ancestor of descendant" do
+      {:ok, entity_a} = %TypeA{name: "a"} |> Repo.insert()
+      {:ok, entity_b} = %TypeA{name: "b"} |> Repo.insert()
+      {:edge_created, _edge} = TypeA.create_edge(entity_a, entity_b) |> Repo.dagex_update()
+
+      assert TypeA.precedes?(entity_a, entity_b) |> Repo.exists?() == true
+    end
+
+    test "returns false if ancestor is a descendant of descendant" do
+      {:ok, entity_a} = %TypeA{name: "a"} |> Repo.insert()
+      {:ok, entity_b} = %TypeA{name: "b"} |> Repo.insert()
+      {:edge_created, _edge} = TypeA.create_edge(entity_a, entity_b) |> Repo.dagex_update()
+
+      assert TypeA.precedes?(entity_b, entity_a) |> Repo.exists?() == false
+    end
+
+    test "returns false if ancestor and descendant are not connected" do
+      {:ok, entity_a} = %TypeA{name: "a"} |> Repo.insert()
+      {:ok, entity_b} = %TypeA{name: "b"} |> Repo.insert()
+
+      assert TypeA.precedes?(entity_a, entity_b) |> Repo.exists?() == false
+    end
+  end
+
+  describe "all_paths/2" do
+    test "returns an empty list if ancestor and descendant are not connected" do
+      {:ok, entity_a} = %TypeA{name: "a"} |> Repo.insert()
+      {:ok, entity_b} = %TypeA{name: "b"} |> Repo.insert()
+
+      assert TypeA.all_paths(entity_a, entity_b) |> Repo.dagex_paths() == []
+    end
+
+    test "returns a list containing only one path that contains only the node itself if ancestor and descendant are the same" do
+      {:ok, entity_a} = %TypeA{name: "a"} |> Repo.insert()
+
+      assert TypeA.all_paths(entity_a, entity_a) |> Repo.dagex_paths() == [[entity_a]]
+    end
+
+    test "returns a list containing one path from ancestor to descendant when only one path exists" do
+      {:ok, entity_a} = %TypeA{name: "a"} |> Repo.insert()
+      {:ok, entity_b} = %TypeA{name: "b"} |> Repo.insert()
+      {:edge_created, _edge} = TypeA.create_edge(entity_a, entity_b) |> Repo.dagex_update()
+      {:ok, entity_c} = %TypeA{name: "c"} |> Repo.insert()
+      {:edge_created, _edge} = TypeA.create_edge(entity_b, entity_c) |> Repo.dagex_update()
+
+      assert TypeA.all_paths(entity_a, entity_c) |> Repo.dagex_paths() == [
+               [entity_a, entity_b, entity_c]
+             ]
+    end
+
+    test "returns a list containing every possible path from ancestor to descendant when multiple paths exist" do
+      {:ok, entity_a} = %TypeA{name: "a"} |> Repo.insert()
+      {:ok, entity_b} = %TypeA{name: "b"} |> Repo.insert()
+      {:edge_created, _edge} = TypeA.create_edge(entity_a, entity_b) |> Repo.dagex_update()
+      {:ok, entity_c} = %TypeA{name: "c"} |> Repo.insert()
+      {:edge_created, _edge} = TypeA.create_edge(entity_b, entity_c) |> Repo.dagex_update()
+      {:ok, entity_d} = %TypeA{name: "d"} |> Repo.insert()
+      {:edge_created, _edge} = TypeA.create_edge(entity_a, entity_d) |> Repo.dagex_update()
+      {:edge_created, _edge} = TypeA.create_edge(entity_d, entity_c) |> Repo.dagex_update()
+
+      assert TypeA.all_paths(entity_a, entity_c) |> Repo.dagex_paths() == [
+               [entity_a, entity_b, entity_c],
+               [entity_a, entity_d, entity_c]
+             ]
     end
   end
 end

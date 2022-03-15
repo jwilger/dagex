@@ -252,6 +252,42 @@ defmodule Dagex do
   @callback with_descendants(parent :: Ecto.Schema.t()) :: Ecto.Queryable.t()
 
   @doc false
+  @spec all_paths(module(), Ecto.Schema.t(), Ecto.Schema.t()) :: Ecto.Queryable.t()
+  def all_paths(module, ancestor, descendant) do
+    node_type = module.__schema__(:source)
+    primary_key_field = List.first(module.__schema__(:primary_key))
+    ancestor_id = ancestor |> Map.fetch!(primary_key_field) |> to_string()
+    descendant_id = descendant |> Map.fetch!(primary_key_field) |> to_string()
+
+    from(p in "dagex_paths",
+      join: n in "dagex_nodes",
+      on: n.id == p.node_id,
+      join: an in "dagex_nodes",
+      on: fragment("? ~ CAST('*.' || ? || '.*' AS lquery)", p.path, an.id),
+      left_lateral_join:
+        a in fragment(
+          "SELECT a.elem, a.nr FROM unnest(string_to_array(?::text, '.')::int[]) WITH ORDINALITY AS a(elem, nr)",
+          p.path
+        ),
+      on: true,
+      join: part_node in "dagex_nodes",
+      on: part_node.id == a.elem,
+      join: m_node in ^module,
+      on: fragment("?::text", m_node.id) == part_node.ext_id,
+      where:
+        n.ext_id == fragment("?::text", ^descendant_id) and
+          n.node_type == ^node_type and
+          an.ext_id == fragment("?::text", ^ancestor_id) and
+          an.node_type == ^node_type,
+      select: %{path: p.path, position: a.nr, node: m_node},
+      order_by: [p.path, a.nr]
+    )
+  end
+
+  @callback all_paths(ancestor :: Ecto.Schema.t(), descendant :: Ecto.Schema.t()) ::
+              Ecto.Queryable.t()
+
+  @doc false
   @spec succeeds?(module(), struct(), struct()) :: Ecto.Queryable.t()
   def succeeds?(module, descendant, ancestor) do
     primary_key_field = module.__schema__(:primary_key) |> List.first()
@@ -423,6 +459,9 @@ defmodule Dagex do
 
       @impl Dagex
       def precedes?(ancestor, descendant), do: Dagex.precedes?(__MODULE__, ancestor, descendant)
+
+      @impl Dagex
+      def all_paths(ancestor, descendant), do: Dagex.all_paths(__MODULE__, ancestor, descendant)
 
       @impl Dagex
       defdelegate create_edge(parent, child), to: Dagex

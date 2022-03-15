@@ -50,10 +50,23 @@ defmodule Dagex.Repo do
     RemoveEdge.process_result(result, op)
   end
 
+  def dagex_paths(repo, queryable) do
+    queryable
+    |> repo.all()
+    |> Enum.group_by(fn node -> node.path end)
+    |> Enum.map(fn {_path, nodes} ->
+      nodes
+      |> Enum.sort(&(&1.position <= &2.position))
+      |> Enum.map(fn node -> node.node end)
+    end)
+  end
+
   @spec __using__(any()) :: Macro.t()
   defmacro __using__(_opts) do
     quote do
       def dagex_update(operation), do: Dagex.Repo.dagex_update(__MODULE__, operation)
+
+      def dagex_paths(queryable), do: Dagex.Repo.dagex_paths(__MODULE__, queryable)
     end
   end
 end
