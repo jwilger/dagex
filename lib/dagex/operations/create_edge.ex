@@ -2,7 +2,7 @@ defmodule Dagex.Operations.CreateEdge do
   @moduledoc """
   Represents a database operation to create a new edge between two nodes.
 
-  See `Dagex.create_edge/2`
+  See `c:Dagex.create_edge/2`
   """
 
   @type t() :: %__MODULE__{
@@ -12,6 +12,9 @@ defmodule Dagex.Operations.CreateEdge do
           child: struct(),
           child_id: String.t()
         }
+
+  @type result() ::
+          {:edge_created, {parent :: struct(), child :: struct()}} | {:error, reason :: atom()}
 
   defstruct [:node_type, :parent, :parent_id, :child, :child_id]
 

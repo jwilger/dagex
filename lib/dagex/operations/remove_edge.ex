@@ -2,7 +2,7 @@ defmodule Dagex.Operations.RemoveEdge do
   @moduledoc """
   Represents a database operation to remove an edge between two nodes.
 
-  See `Dagex.remove_edge/2`
+  See `c:Dagex.remove_edge/2`
   """
 
   @type t() :: %__MODULE__{
@@ -12,6 +12,8 @@ defmodule Dagex.Operations.RemoveEdge do
           child: struct(),
           child_id: String.t()
         }
+
+  @type result() :: {:edge_removed, {parent :: struct(), child :: struct()}}
 
   defstruct [:node_type, :parent, :parent_id, :child, :child_id]
 

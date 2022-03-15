@@ -137,6 +137,10 @@ defmodule Dagex do
       iex> true = AnimalType.succeeds?(bulldog, pet) |> Repo.exists?()
       iex> false = AnimalType.succeeds?(bulldog, sheep) |> Repo.exists?()
       iex>
+      iex> # we can also get the possible paths between two nodes
+      iex> paths = AnimalType.all_paths(animal, sheep) |> Repo.dagex_paths()
+      iex> assert_lists_equal(paths, [[animal, pet, sheep], [animal, livestock, sheep]])
+      iex>
       iex> # if we remove an edge
       iex> {:edge_removed, _edge} = AnimalType.remove_edge(livestock, dog) |> Repo.dagex_update()
       iex> # then
@@ -250,42 +254,6 @@ defmodule Dagex do
   entity along with the parent entity itself.
   """
   @callback with_descendants(parent :: Ecto.Schema.t()) :: Ecto.Queryable.t()
-
-  @doc false
-  @spec all_paths(module(), Ecto.Schema.t(), Ecto.Schema.t()) :: Ecto.Queryable.t()
-  def all_paths(module, ancestor, descendant) do
-    node_type = module.__schema__(:source)
-    primary_key_field = List.first(module.__schema__(:primary_key))
-    ancestor_id = ancestor |> Map.fetch!(primary_key_field) |> to_string()
-    descendant_id = descendant |> Map.fetch!(primary_key_field) |> to_string()
-
-    from(p in "dagex_paths",
-      join: n in "dagex_nodes",
-      on: n.id == p.node_id,
-      join: an in "dagex_nodes",
-      on: fragment("? ~ CAST('*.' || ? || '.*' AS lquery)", p.path, an.id),
-      left_lateral_join:
-        a in fragment(
-          "SELECT a.elem, a.nr FROM unnest(string_to_array(?::text, '.')::int[]) WITH ORDINALITY AS a(elem, nr)",
-          p.path
-        ),
-      on: true,
-      join: part_node in "dagex_nodes",
-      on: part_node.id == a.elem,
-      join: m_node in ^module,
-      on: fragment("?::text", m_node.id) == part_node.ext_id,
-      where:
-        n.ext_id == fragment("?::text", ^descendant_id) and
-          n.node_type == ^node_type and
-          an.ext_id == fragment("?::text", ^ancestor_id) and
-          an.node_type == ^node_type,
-      select: %{path: p.path, position: a.nr, node: m_node},
-      order_by: [p.path, a.nr]
-    )
-  end
-
-  @callback all_paths(ancestor :: Ecto.Schema.t(), descendant :: Ecto.Schema.t()) ::
-              Ecto.Queryable.t()
 
   @doc false
   @spec succeeds?(module(), struct(), struct()) :: Ecto.Queryable.t()
@@ -409,7 +377,7 @@ defmodule Dagex do
 
   @doc """
   Returns a `Dagex.Operations.CreateEdge` struct to be passed to
-  `Dagex.Repo.dagex_update/2` that will attempt to create a new edge in
+  `c:Dagex.Repo.dagex_update/1` that will attempt to create a new edge in
   the implementing module's associated DAG.
   """
   @callback create_edge(parent :: Ecto.Schema.t(), child :: Ecto.Schema.t()) :: CreateEdge.t()
@@ -422,10 +390,54 @@ defmodule Dagex do
 
   @doc """
   Returns a `Dagex.Operations.RemoveEdge` struct to be passed to
-  `Dagex.Repo.dagex_update/2` that will attempt to remove the specified edge
+  `c:Dagex.Repo.dagex_update/1` that will attempt to remove the specified edge
   from the implementing module's associated DAG.
   """
   @callback remove_edge(parent :: Ecto.Schema.t(), child :: Ecto.Schema.t()) :: RemoveEdge.t()
+
+  @doc false
+  @spec all_paths(module(), Ecto.Schema.t(), Ecto.Schema.t()) :: Ecto.Queryable.t()
+  def all_paths(module, ancestor, descendant) do
+    node_type = module.__schema__(:source)
+    primary_key_field = List.first(module.__schema__(:primary_key))
+    ancestor_id = ancestor |> Map.fetch!(primary_key_field) |> to_string()
+    descendant_id = descendant |> Map.fetch!(primary_key_field) |> to_string()
+
+    from(p in "dagex_paths",
+      join: n in "dagex_nodes",
+      on: n.id == p.node_id,
+      join: an in "dagex_nodes",
+      on: fragment("? ~ CAST('*.' || ? || '.*' AS lquery)", p.path, an.id),
+      left_lateral_join:
+        a in fragment(
+          "SELECT a.elem, a.nr FROM unnest(string_to_array(?::text, '.')::int[]) WITH ORDINALITY AS a(elem, nr)",
+          p.path
+        ),
+      on: true,
+      join: part_node in "dagex_nodes",
+      on: part_node.id == a.elem,
+      join: m_node in ^module,
+      on: fragment("?::text", m_node.id) == part_node.ext_id,
+      where:
+        n.ext_id == fragment("?::text", ^descendant_id) and
+          n.node_type == ^node_type and
+          an.ext_id == fragment("?::text", ^ancestor_id) and
+          an.node_type == ^node_type,
+      select: %{path: p.path, position: a.nr, node: m_node},
+      order_by: [p.path, a.nr]
+    )
+  end
+
+  @doc """
+  Returns a query that can be passed to your application's Ecto repository's
+  `c:Dagex.Repo.dagex_paths/1` function in order to retrieve a list of the
+  possible paths between two nodes. Each path is itself a list starting with the
+  `ancestor` node, ending with the `descendant` node, and including each node in
+  the path between the two. Returns an empty list if no path exists between the
+  two nodes.
+  """
+  @callback all_paths(ancestor :: Ecto.Schema.t(), descendant :: Ecto.Schema.t()) ::
+              Ecto.Queryable.t()
 
   @doc false
   @spec __using__(keyword()) :: Macro.t()
