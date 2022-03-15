@@ -50,6 +50,8 @@ defmodule Dagex.Repo do
     RemoveEdge.process_result(result, op)
   end
 
+  @spec dagex_paths(repo :: Ecto.Repo.t(), queryable :: Ecto.Queryable.t()) ::
+          list(list(Ecto.Schema.t()))
   def dagex_paths(repo, queryable) do
     queryable
     |> repo.all()
@@ -64,8 +66,10 @@ defmodule Dagex.Repo do
   @spec __using__(any()) :: Macro.t()
   defmacro __using__(_opts) do
     quote do
+      @spec dagex_update(CreateEdge.t() | RemoveEdge.t()) :: {:ok, tuple()} | {:error, term()}
       def dagex_update(operation), do: Dagex.Repo.dagex_update(__MODULE__, operation)
 
+      @spec dagex_paths(Ecto.Queryable.t()) :: list(list(Ecto.Schema.t()))
       def dagex_paths(queryable), do: Dagex.Repo.dagex_paths(__MODULE__, queryable)
     end
   end

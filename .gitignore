@@ -27,3 +27,4 @@ dagex-*.tar
 
 # Local environment vars
 .envrc
+/priv/plts/

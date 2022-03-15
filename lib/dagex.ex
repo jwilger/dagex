@@ -290,10 +290,11 @@ defmodule Dagex do
   @doc false
   @spec succeeds?(module(), struct(), struct()) :: Ecto.Queryable.t()
   def succeeds?(module, descendant, ancestor) do
-    primary_key_field = module.__schema__(:primary_key) |> List.first()
+    primary_key_field = List.first(module.__schema__(:primary_key))
     descendant_id = Map.fetch!(descendant, primary_key_field)
 
-    descendants(module, ancestor)
+    module
+    |> descendants(ancestor)
     |> where([m], field(m, ^primary_key_field) == ^descendant_id)
   end
 
@@ -385,10 +386,11 @@ defmodule Dagex do
   @doc false
   @spec precedes?(module(), struct(), struct()) :: Ecto.Queryable.t()
   def precedes?(module, ancestor, descendant) do
-    primary_key_field = module.__schema__(:primary_key) |> List.first()
+    primary_key_field = List.first(module.__schema__(:primary_key))
     ancestor_id = Map.fetch!(ancestor, primary_key_field)
 
-    ancestors(module, descendant)
+    module
+    |> ancestors(descendant)
     |> where([m], field(m, ^primary_key_field) == ^ancestor_id)
   end
 

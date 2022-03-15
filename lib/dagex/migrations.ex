@@ -57,6 +57,7 @@ defmodule Dagex.Migrations do
   @initial_version 1
   @current_version 1
 
+  @spec up(opts :: keyword()) :: :ok
   @doc """
   Run the `up` changes for all migrations between the initial version and the current version.
 
@@ -86,6 +87,7 @@ defmodule Dagex.Migrations do
     end
   end
 
+  @spec down(opts :: keyword()) :: nil | :ok
   @doc """
   Run the `down` changes for all migrations between the current version and the initial version.
 
@@ -108,12 +110,15 @@ defmodule Dagex.Migrations do
     end
   end
 
+  @spec initial_version() :: integer()
   @doc false
   def initial_version, do: @initial_version
 
+  @spec current_version() :: integer()
   @doc false
   def current_version, do: @current_version
 
+  @spec migrated_version(repo :: Ecto.Repo.t()) :: integer()
   @doc false
   def migrated_version(repo) do
     query = """
@@ -126,7 +131,7 @@ defmodule Dagex.Migrations do
 
     case repo.query(query) do
       {:ok, %{rows: [[version]]}} when is_binary(version) -> String.to_integer(version)
-      _ -> 0
+      _result -> 0
     end
   end
 

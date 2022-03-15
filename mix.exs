@@ -13,7 +13,7 @@ defmodule Dagex.MixProject do
         links: []
       ],
       app: :dagex,
-      version: "1.1.1",
+      version: "1.2.0",
       elixir: "~> 1.13",
       elixirc_paths: elixirc_paths(Mix.env()),
       start_permanent: Mix.env() == :prod,
@@ -28,7 +28,8 @@ defmodule Dagex.MixProject do
         "ecto.migrate": :test,
         "ecto.migrations": :test,
         "ecto.rollback": :test,
-        "ecto.reset": :test
+        "ecto.reset": :test,
+        quality: :test
       ],
       dialyzer: [
         plt_file: {:no_warn, "priv/plts/dialyzer.plt"},
@@ -89,6 +90,7 @@ defmodule Dagex.MixProject do
       {:ecto_sql, "~> 3.6"},
       {:ecto_ltree, "~> 0.3.0"},
       {:ex_doc, "~> 0.21", only: [:dev, :test], runtime: false},
+      {:jason, "~> 1.0"},
       {:postgrex, ">= 0.0.0"},
       {:typed_ecto_schema, "~> 0.3"}
     ]
@@ -97,7 +99,14 @@ defmodule Dagex.MixProject do
   defp aliases do
     [
       "ecto.reset": ["ecto.drop --quiet", "ecto.create --quiet", "ecto.migrate --quiet"],
-      test: ["ecto.reset", "test"]
+      test: ["ecto.reset", "test"],
+      quality: [
+        "compile",
+        "test --raise --slowest 1",
+        "format",
+        "credo --strict",
+        "dialyzer"
+      ]
     ]
   end
 end

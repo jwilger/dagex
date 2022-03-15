@@ -1,4 +1,6 @@
 defmodule DagexTest.TypeA do
+  @moduledoc false
+
   use Dagex
   use Ecto.Schema
 

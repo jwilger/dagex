@@ -3,6 +3,7 @@ defmodule Dagex.Migrations.V01 do
 
   use Ecto.Migration
 
+  @spec up(keyword()) :: nil
   def up(_opts \\ []) do
     execute("CREATE EXTENSION IF NOT EXISTS ltree", "")
 
@@ -177,8 +178,11 @@ defmodule Dagex.Migrations.V01 do
     AFTER DELETE ON dagex_nodes
     FOR EACH ROW EXECUTE FUNCTION dagex_delete_paths_for_node();
     """)
+
+    nil
   end
 
+  @spec down(keyword()) :: nil
   def down(_opts \\ []) do
     execute("DROP TRIGGER dagex_delete_paths_for_node_trigger ON dagex_nodes;")
     execute("DROP FUNCTION dagex_delete_paths_for_node();")
@@ -190,5 +194,6 @@ defmodule Dagex.Migrations.V01 do
     execute("DROP FUNCTION dagex_add_initial_path();")
     drop(table("dagex_paths"))
     drop(table("dagex_nodes"))
+    nil
   end
 end

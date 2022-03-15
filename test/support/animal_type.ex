@@ -1,4 +1,6 @@
 defmodule DagexTest.AnimalType do
+  @moduledoc false
+
   use Ecto.Schema
   use Dagex
 

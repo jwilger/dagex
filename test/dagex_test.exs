@@ -1,26 +1,26 @@
 defmodule DagexTest do
   use ExUnit.Case, async: true
+
+  alias DagexTest.{Repo, TypeA, TypeB, TypeC}
+  alias Ecto.Adapters.SQL.Sandbox
+
   require Assertions
 
   doctest Dagex
 
-  alias DagexTest.{Repo, TypeA, TypeB}
-
   setup do
-    :ok = Ecto.Adapters.SQL.Sandbox.checkout(Repo)
+    :ok = Sandbox.checkout(Repo)
   end
 
   test "creating an entity adds a nodes record" do
-    %{id: entity_id} = Repo.insert!(%TypeA{name: "bar"})
-    entity_id = to_string(entity_id)
+    entity_id = to_string(Repo.insert!(%TypeA{name: "bar"}).id)
 
     {:ok, %{rows: [[^entity_id]]}} =
       Repo.query("SELECT ext_id FROM dagex_nodes WHERE ext_id = $1", [entity_id])
   end
 
   test "creating an entity adds an initial paths record" do
-    %{id: entity_id} = Repo.insert!(%TypeA{name: "bar"})
-    entity_id = to_string(entity_id)
+    entity_id = to_string(Repo.insert!(%TypeA{name: "bar"}).id)
 
     {:ok, %{rows: [[^entity_id]]}} =
       Repo.query(
@@ -30,8 +30,8 @@ defmodule DagexTest do
   end
 
   test "deleting an entity removes its node record" do
-    %{id: entity_id} = entity = Repo.insert!(%TypeA{name: "bar"})
-    entity_id = to_string(entity_id)
+    entity = Repo.insert!(%TypeA{name: "bar"})
+    entity_id = to_string(entity.id)
     Repo.delete!(entity)
 
     {:ok, %{rows: []}} =

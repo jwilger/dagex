@@ -1,4 +1,10 @@
 defmodule Dagex.Operations.CreateEdge do
+  @moduledoc """
+  Represents a database operation to create a new edge between two nodes.
+
+  See `Dagex.create_edge/2`
+  """
+
   @type t() :: %__MODULE__{
           node_type: String.t(),
           parent: struct(),
