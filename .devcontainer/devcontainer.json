@@ -1,0 +1,47 @@
+// For format details, see https://aka.ms/devcontainer.json. For config options, see the README at:
+// https://github.com/microsoft/vscode-dev-containers/tree/v0.245.2/containers/elixir-phoenix-postgres
+{
+	"name": "dagex",
+	"dockerComposeFile": "docker-compose.yml",
+	"service": "elixir",
+	"workspaceFolder": "/workspace",
+	// Configure tool-specific properties.
+	"customizations": {
+		// Configure properties specific to VS Code.
+		"vscode": {
+			// Add the IDs of extensions you want installed when the container is created.
+			"extensions": [
+				"jakebecker.elixir-ls",
+				"DrewPereli.elixir-auto-alias",
+				"esbenp.prettier-vscode",
+				"Gruntfuggly.triggertaskonsave",
+				"bierner.github-markdown-preview",
+				"eamodio.gitlens",
+				"benvp.vscode-hex-pm-intellisense",
+				"ms-vsliveshare.vsliveshare-pack",
+				"pantajoe.vscode-elixir-credo",
+				"bradlc.vscode-tailwindcss"
+			],
+			"settings": {
+				"triggerTaskOnSave.tasks": {
+					"Run Stale Tests": [
+						"**/*.ex",
+						"**/*.exs",
+						"**/*.heex"
+					]
+				}
+			}
+		}
+	},
+	// Use 'forwardPorts' to make a list of ports inside the container available locally.
+	// This can be used to network with other containers or with the host. 
+	"forwardPorts": [
+		4000,
+		4001,
+		5432
+	],
+	// Use 'postCreateCommand' to run commands after the container is created.
+	"postCreateCommand": "mix deps.get",
+	// Uncomment to connect as a non-root user. See https://aka.ms/vscode-remote/containers/non-root.
+	"remoteUser": "vscode"
+}
