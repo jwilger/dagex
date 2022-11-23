@@ -1,7 +1,7 @@
 defmodule DagexTest do
   use ExUnit.Case, async: true
 
-  alias DagexTest.{Repo, TypeA, TypeB, TypeC}
+  alias DagexTest.{Repo, TypeA, TypeB, TypeC, TypeD}
   alias Ecto.Adapters.SQL.Sandbox
 
   require Assertions
@@ -12,6 +12,12 @@ defmodule DagexTest do
     :ok = Sandbox.checkout(Repo)
   end
 
+  test "* is a reserved ext_id for the graph's supremum" do
+    assert_raise Ecto.ConstraintError, ~r/dagex_reserved_supremum_id/, fn ->
+      Repo.insert!(%TypeD{id: "*", name: "foo"})
+    end
+  end
+
   test "creating an entity adds a nodes record" do
     entity_id = to_string(Repo.insert!(%TypeA{name: "bar"}).id)
 
@@ -19,14 +25,54 @@ defmodule DagexTest do
       Repo.query("SELECT ext_id FROM dagex_nodes WHERE ext_id = $1", [entity_id])
   end
 
-  test "creating an entity adds an initial paths record" do
+  test "updating an entity's ID updates the ext_id of its associated dagex node" do
+    entity = Repo.insert!(%TypeD{id: "foo", name: "bar"})
+    changeset = Ecto.Changeset.change(entity, %{id: "baz"})
+    Repo.update!(changeset)
+
+    {:ok, %{rows: [["baz"]]}} =
+      Repo.query("SELECT ext_id FROM dagex_nodes WHERE ext_id = $1", ["baz"])
+
+    {:ok, %{rows: []}} = Repo.query("SELECT ext_id FROM dagex_nodes WHERE ext_id = $1", ["foo"])
+  end
+
+  test "creating an entity creates a supremum node for the entity's node type if such does not already exist" do
+    Repo.insert!(%TypeA{name: "bar"})
+
+    {:ok, %{rows: [["*"]]}} =
+      Repo.query("SELECT ext_id FROM dagex_nodes WHERE ext_id = $1 AND node_type = $2", [
+        "*",
+        "type_as"
+      ])
+  end
+
+  test "creating an entity does not create a second supremum node for the entity's node type if such already exists" do
+    Repo.insert!(%TypeA{name: "bar"})
+    Repo.insert!(%TypeA{name: "baz"})
+
+    {:ok, %{rows: [["*"]]}} =
+      Repo.query("SELECT ext_id FROM dagex_nodes WHERE ext_id = $1 AND node_type = $2", [
+        "*",
+        "type_as"
+      ])
+  end
+
+  test "creating an entity adds an initial paths record with a path to the node type supremum" do
     entity_id = to_string(Repo.insert!(%TypeA{name: "bar"}).id)
 
-    {:ok, %{rows: [[^entity_id]]}} =
+    {:ok, %{rows: [[supremum_id]]}} =
+      Repo.query("SELECT id FROM dagex_nodes WHERE ext_id = $1 AND node_type = $2", [
+        "*",
+        "type_as"
+      ])
+
+    {:ok, %{rows: [[node_id, path]]}} =
       Repo.query(
-        "SELECT n.ext_id FROM dagex_paths p JOIN dagex_nodes n ON p.node_id = n.id WHERE n.ext_id = $1 AND p.path = text2ltree(n.id::text)",
+        "SELECT n.id, p.path FROM dagex_paths p JOIN dagex_nodes n ON p.node_id = n.id WHERE n.ext_id = $1",
         [entity_id]
       )
+
+    assert path == "#{supremum_id}.#{node_id}"
   end
 
   test "deleting an entity removes its node record" do
@@ -54,36 +100,6 @@ defmodule DagexTest do
 
     assert [] == TypeA.descendants(entity_a) |> Repo.all()
     assert [] == TypeA.ancestors(entity_d) |> Repo.all()
-  end
-
-  describe "roots/0" do
-    test "contains a list of entities that do not have any parents in the graph" do
-      {:ok, entity_a} = %TypeA{name: "bar"} |> Repo.insert()
-      {:ok, entity_b} = %TypeA{name: "baz"} |> Repo.insert()
-      roots = TypeA.roots() |> Repo.all()
-      assert Enum.count(roots) == 2
-      assert entity_a in roots
-      assert entity_b in roots
-    end
-
-    test "does not contain entities of a different node_type" do
-      {:ok, entity_a} = %TypeA{name: "bar"} |> Repo.insert()
-      {:ok, entity_b} = %TypeB{name: "baz"} |> Repo.insert()
-      roots = TypeA.roots() |> Repo.all()
-      assert Enum.count(roots) == 1
-      assert entity_a in roots
-      refute entity_b in roots
-    end
-
-    test "does not contain entities that have at least one parent node" do
-      {:ok, entity_a} = %TypeA{name: "bar"} |> Repo.insert()
-      {:ok, entity_b} = %TypeA{name: "baz"} |> Repo.insert()
-      {:edge_created, _edge} = TypeA.create_edge(entity_a, entity_b) |> Repo.dagex_update()
-      roots = TypeA.roots() |> Repo.all()
-      assert Enum.count(roots) == 1
-      assert entity_a in roots
-      refute entity_b in roots
-    end
   end
 
   describe "create_edge/2" do
@@ -281,11 +297,11 @@ defmodule DagexTest do
 
   describe "children/1" do
     test "returns a list of nodes that are direct children of the given node" do
-      {:ok, entity_a} = %TypeA{name: "bar"} |> Repo.insert()
-      {:ok, entity_b} = %TypeA{name: "bar"} |> Repo.insert()
-      {:ok, entity_c} = %TypeA{name: "bar"} |> Repo.insert()
-      {:ok, entity_d} = %TypeA{name: "bar"} |> Repo.insert()
-      {:ok, entity_e} = %TypeA{name: "bar"} |> Repo.insert()
+      {:ok, entity_a} = %TypeA{name: "a"} |> Repo.insert()
+      {:ok, entity_b} = %TypeA{name: "b"} |> Repo.insert()
+      {:ok, entity_c} = %TypeA{name: "c"} |> Repo.insert()
+      {:ok, entity_d} = %TypeA{name: "d"} |> Repo.insert()
+      {:ok, entity_e} = %TypeA{name: "e"} |> Repo.insert()
       {:edge_created, _edge} = TypeA.create_edge(entity_a, entity_b) |> Repo.dagex_update()
       {:edge_created, _edge} = TypeA.create_edge(entity_b, entity_c) |> Repo.dagex_update()
       {:edge_created, _edge} = TypeA.create_edge(entity_b, entity_d) |> Repo.dagex_update()

@@ -55,7 +55,7 @@ defmodule Dagex.Migrations do
   use Ecto.Migration
 
   @initial_version 1
-  @current_version 1
+  @current_version 2
 
   @spec up(opts :: keyword()) :: :ok
   @doc """
@@ -161,8 +161,52 @@ defmodule Dagex.Migrations do
 
       execute(
         """
-        CREATE TRIGGER dagex_maintain_nodes_trigger_#{table_name}
+        CREATE OR REPLACE TRIGGER dagex_maintain_nodes_trigger_#{table_name}
         AFTER INSERT OR DELETE ON #{table_name}
+        FOR EACH ROW EXECUTE FUNCTION dagex_maintain_nodes_#{table_name}();
+        """,
+        """
+        DROP TRIGGER dagex_maintain_nodes_trigger_#{table_name} ON #{table_name};
+        """
+      )
+    end
+  end
+
+  defmacro setup_node_type(table_name, "2.0.0") do
+    quote bind_quoted: [table_name: table_name] do
+      execute(
+        """
+        CREATE OR REPLACE FUNCTION dagex_maintain_nodes_#{table_name}()
+        RETURNS TRIGGER AS
+        $$
+        BEGIN
+        IF (TG_OP = 'INSERT') THEN
+          IF (NEW.id::text = '*') THEN
+            raise exception 'Cannot create node with id *; that id is reserved for the collection supremum' USING ERRCODE = 'check_violation', CONSTRAINT = 'dagex_reserved_supremum_id';
+          END IF;
+          INSERT INTO dagex_nodes (node_type, ext_id) VALUES('#{table_name}', '*') ON CONFLICT DO NOTHING;
+          INSERT INTO dagex_nodes (node_type, ext_id) VALUES('#{table_name}', NEW.id::text);
+        ELSIF (TG_OP = 'UPDATE') THEN
+          IF (NEW.id != OLD.id) THEN
+            UPDATE dagex_nodes SET ext_id = NEW.id::text WHERE ext_id = OLD.id::text;
+          END IF;
+        ELSIF (TG_OP = 'DELETE') THEN
+          DELETE FROM dagex_nodes WHERE ext_id = OLD.id::text;
+        END IF;
+        RETURN NULL;
+        END;
+        $$
+        LANGUAGE plpgsql;
+        """,
+        """
+        DROP FUNCTION dagex_maintain_nodes_#{table_name}();
+        """
+      )
+
+      execute(
+        """
+        CREATE OR REPLACE TRIGGER dagex_maintain_nodes_trigger_#{table_name}
+        AFTER INSERT OR UPDATE OR DELETE ON #{table_name}
         FOR EACH ROW EXECUTE FUNCTION dagex_maintain_nodes_#{table_name}();
         """,
         """
