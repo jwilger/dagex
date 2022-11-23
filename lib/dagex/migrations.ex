@@ -85,9 +85,11 @@ defmodule Dagex.Migrations do
       true ->
         :ok
     end
+    Ecto.Migration.flush()
+    :ok
   end
 
-  @spec down(opts :: keyword()) :: nil | :ok
+  @spec down(opts :: keyword()) :: :ok
   @doc """
   Run the `down` changes for all migrations between the current version and the initial version.
 
@@ -108,6 +110,8 @@ defmodule Dagex.Migrations do
     if initial >= version do
       change(initial..version, :down)
     end
+    Ecto.Migration.flush()
+    :ok
   end
 
   @spec initial_version() :: integer()
