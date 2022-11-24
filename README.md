@@ -17,7 +17,7 @@ by adding `dagex` to your list of dependencies in `mix.exs`:
 ```elixir
 def deps do
   [
-    {:dagex, "~> 1.0"}
+    {:dagex, "~> 2.0"}
   ]
 end
 ```
@@ -45,7 +45,7 @@ defmodule MyApp.Repo.Migrations.AddDagexToProject do
   end
   
   def down do 
-    Dagex.Migrations.down(version: 1)
+    Dagex.Migrations.down()
   end
 end
 ```
@@ -71,7 +71,7 @@ defmodule MyApp.Repo.Migrations.AddOrganizations do
     
     # Adds triggers to the "organizations" table to maintain the associated DAG as
     # records are added/removed.
-    Dagex.Migrations.setup_node_type("organizations", "1.0.0")
+    Dagex.Migrations.setup_node_type("organizations", "2.0.0")
   end
 end
 ```
