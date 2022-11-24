@@ -85,6 +85,7 @@ defmodule Dagex.Migrations do
       true ->
         :ok
     end
+
     Ecto.Migration.flush()
     :ok
   end
@@ -110,6 +111,7 @@ defmodule Dagex.Migrations do
     if initial >= version do
       change(initial..version, :down)
     end
+
     Ecto.Migration.flush()
     :ok
   end

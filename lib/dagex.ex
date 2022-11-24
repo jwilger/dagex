@@ -159,6 +159,37 @@ defmodule Dagex do
   alias Dagex.Operations.{CreateEdge, RemoveEdge}
 
   @doc false
+  @spec roots(module()) :: Ecto.Queryable.t()
+  def roots(module) do
+    node_type = module.__schema__(:source)
+    primary_key_field = module.__schema__(:primary_key) |> List.first()
+
+    from(r in module,
+      distinct: true,
+      join: n in "dagex_nodes",
+      on: n.ext_id == fragment("?::text", field(r, ^primary_key_field)),
+      join: s in "dagex_nodes",
+      on: s.ext_id == "*" and s.node_type == ^node_type,
+      join: p in "dagex_paths",
+      on: p.node_id == n.id,
+      join: pc in "dagex_paths",
+      on: pc.node_id == n.id,
+      having: count(pc.id) == 1,
+      group_by: r.id,
+      where:
+        p.path == fragment("text2ltree(?::text || '.' || ?::text)", s.id, n.id) and
+          n.node_type == ^node_type
+    )
+  end
+
+  @doc """
+  Returns a query that can be passed to your application's Ecto repository
+  to retrieve a list of entities of the type defined in this module that are
+  at the top level of the DAG (i.e. have no other parents.)
+  """
+  @callback roots() :: Ecto.Queryable.t()
+
+  @doc false
   @spec children(module(), struct()) :: Ecto.Queryable.t()
   def children(module, parent) do
     node_type = module.__schema__(:source)
@@ -426,6 +457,9 @@ defmodule Dagex do
 
     quote generated: true, bind_quoted: [caller_module: caller_module] do
       @behaviour Dagex
+
+      @impl Dagex
+      def roots, do: Dagex.roots(__MODULE__)
 
       @impl Dagex
       def children(parent), do: Dagex.children(__MODULE__, parent)

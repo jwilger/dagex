@@ -102,6 +102,36 @@ defmodule DagexTest do
     assert [] == TypeA.ancestors(entity_d) |> Repo.all()
   end
 
+  describe "roots/0" do
+    test "contains a list of entities that do not have any parents in the graph" do
+      {:ok, entity_a} = %TypeA{name: "bar"} |> Repo.insert()
+      {:ok, entity_b} = %TypeA{name: "baz"} |> Repo.insert()
+      roots = TypeA.roots() |> Repo.all()
+      assert Enum.count(roots) == 2
+      assert entity_a in roots
+      assert entity_b in roots
+    end
+
+    test "does not contain entities of a different node_type" do
+      {:ok, entity_a} = %TypeA{name: "bar"} |> Repo.insert()
+      {:ok, entity_b} = %TypeB{name: "baz"} |> Repo.insert()
+      roots = TypeA.roots() |> Repo.all()
+      assert Enum.count(roots) == 1
+      assert entity_a in roots
+      refute entity_b in roots
+    end
+
+    test "does not contain entities that have at least one parent node" do
+      {:ok, entity_a} = %TypeA{name: "bar"} |> Repo.insert()
+      {:ok, entity_b} = %TypeA{name: "baz"} |> Repo.insert()
+      {:edge_created, _edge} = TypeA.create_edge(entity_a, entity_b) |> Repo.dagex_update()
+      roots = TypeA.roots() |> Repo.all()
+      assert Enum.count(roots) == 1
+      assert entity_a in roots
+      refute entity_b in roots
+    end
+  end
+
   describe "create_edge/2" do
     test "returns {:ok, edge_tuple} if edge can be created" do
       {:ok, entity_a} = %TypeA{name: "bar"} |> Repo.insert()
