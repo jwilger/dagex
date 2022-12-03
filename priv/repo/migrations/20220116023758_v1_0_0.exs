@@ -5,7 +5,7 @@ defmodule Dagex.TestRepo.Migrations.V1_0_0 do
   use Ecto.Migration
 
   def up do
-    Dagex.Migrations.up()
+    Dagex.Migrations.up(version: 1)
 
     create table("type_as") do
       add(:name, :string)
@@ -40,6 +40,7 @@ defmodule Dagex.TestRepo.Migrations.V1_0_0 do
     drop(table("animal_types"))
     drop(table("type_as"))
     drop(table("type_bs"))
-    Dagex.Migrations.down()
+    drop(table("type_cs"))
+    Dagex.Migrations.down(version: 1)
   end
 end

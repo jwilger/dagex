@@ -5,7 +5,7 @@ defmodule Dagex.TestRepo.Migrations.V1_3_0 do
   use Ecto.Migration
 
   def up do
-    Dagex.Migrations.up()
+    Dagex.Migrations.up(version: 2)
 
     Dagex.Migrations.setup_node_type("type_as", "2.0.0")
     Dagex.Migrations.setup_node_type("type_bs", "2.0.0")
@@ -27,6 +27,6 @@ defmodule Dagex.TestRepo.Migrations.V1_3_0 do
     Dagex.Migrations.setup_node_type("type_bs", "1.0.0")
     Dagex.Migrations.setup_node_type("animal_types", "1.0.0")
     Dagex.Migrations.setup_node_type("type_cs", "1.0.0")
-    Dagex.Migrations.down(version: 1)
+    Dagex.Migrations.down(version: 2)
   end
 end
