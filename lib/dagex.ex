@@ -165,20 +165,13 @@ defmodule Dagex do
     primary_key_field = module.__schema__(:primary_key) |> List.first()
 
     from(r in module,
-      distinct: true,
+      distinct: r.id,
       join: n in "dagex_nodes",
       on: n.ext_id == fragment("?::text", field(r, ^primary_key_field)),
-      join: s in "dagex_nodes",
-      on: s.ext_id == "*" and s.node_type == ^node_type,
       join: p in "dagex_paths",
       on: p.node_id == n.id,
-      join: pc in "dagex_paths",
-      on: pc.node_id == n.id,
-      having: count(pc.id) == 1,
-      group_by: r.id,
-      where:
-        p.path == fragment("text2ltree(?::text || '.' || ?::text)", s.id, n.id) and
-          n.node_type == ^node_type
+      where: p.path == fragment("text2ltree(?::text)", n.id) and n.node_type == ^node_type,
+      order_by: field(r, ^primary_key_field)
     )
   end
 
@@ -198,6 +191,7 @@ defmodule Dagex do
 
     from(
       children in module,
+      distinct: children.id,
       join: child_nodes in "dagex_nodes",
       on: child_nodes.ext_id == fragment("?::text", field(children, ^primary_key_field)),
       join: paths in "dagex_paths",
@@ -207,7 +201,7 @@ defmodule Dagex do
       where:
         parent_nodes.ext_id == ^parent_id and parent_nodes.node_type == ^node_type and
           child_nodes.node_type == ^node_type,
-      distinct: true
+      order_by: field(children, ^primary_key_field)
     )
   end
 
@@ -254,7 +248,8 @@ defmodule Dagex do
       where:
         parent_nodes.ext_id == fragment("?::text", ^parent_id) and
           parent_nodes.node_type == ^node_type and
-          descendant_nodes.node_type == ^node_type
+          descendant_nodes.node_type == ^node_type,
+      order_by: field(descendants, ^primary_key_field)
     )
   end
 
@@ -292,6 +287,7 @@ defmodule Dagex do
 
     from(
       ancestors in module,
+      distinct: ancestors.id,
       join: ancestor_nodes in "dagex_nodes",
       on: ancestor_nodes.ext_id == fragment("?::text", ancestors.id),
       join: ancestor_paths in "dagex_paths",
@@ -304,7 +300,7 @@ defmodule Dagex do
         child_nodes.ext_id == fragment("?::text", ^child_id) and
           ancestor_nodes.node_type == ^node_type and
           child_nodes.node_type == ^node_type,
-      distinct: true
+      order_by: field(ancestors, ^primary_key_field)
     )
   end
 
@@ -351,7 +347,8 @@ defmodule Dagex do
       where:
         child_nodes.ext_id == fragment("?::text", ^child_id) and
           ancestor_nodes.node_type == ^node_type and
-          child_nodes.node_type == ^node_type
+          child_nodes.node_type == ^node_type,
+      order_by: field(ancestors, ^primary_key_field)
     )
   end
 

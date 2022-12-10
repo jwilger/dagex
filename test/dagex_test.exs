@@ -12,12 +12,6 @@ defmodule DagexTest do
     :ok = Sandbox.checkout(Repo)
   end
 
-  test "* is a reserved ext_id for the graph's supremum" do
-    assert_raise Ecto.ConstraintError, ~r/dagex_reserved_supremum_id/, fn ->
-      Repo.insert!(%TypeD{id: "*", name: "foo"})
-    end
-  end
-
   test "creating an entity adds a nodes record" do
     entity_id = to_string(Repo.insert!(%TypeA{name: "bar"}).id)
 
@@ -29,50 +23,12 @@ defmodule DagexTest do
     entity = Repo.insert!(%TypeD{id: "foo", name: "bar"})
     changeset = Ecto.Changeset.change(entity, %{id: "baz"})
     Repo.update!(changeset)
+    Repo.query("SELECT ext_id FROM dagex_nodes")
 
     {:ok, %{rows: [["baz"]]}} =
       Repo.query("SELECT ext_id FROM dagex_nodes WHERE ext_id = $1", ["baz"])
 
     {:ok, %{rows: []}} = Repo.query("SELECT ext_id FROM dagex_nodes WHERE ext_id = $1", ["foo"])
-  end
-
-  test "creating an entity creates a supremum node for the entity's node type if such does not already exist" do
-    Repo.insert!(%TypeA{name: "bar"})
-
-    {:ok, %{rows: [["*"]]}} =
-      Repo.query("SELECT ext_id FROM dagex_nodes WHERE ext_id = $1 AND node_type = $2", [
-        "*",
-        "type_as"
-      ])
-  end
-
-  test "creating an entity does not create a second supremum node for the entity's node type if such already exists" do
-    Repo.insert!(%TypeA{name: "bar"})
-    Repo.insert!(%TypeA{name: "baz"})
-
-    {:ok, %{rows: [["*"]]}} =
-      Repo.query("SELECT ext_id FROM dagex_nodes WHERE ext_id = $1 AND node_type = $2", [
-        "*",
-        "type_as"
-      ])
-  end
-
-  test "creating an entity adds an initial paths record with a path to the node type supremum" do
-    entity_id = to_string(Repo.insert!(%TypeA{name: "bar"}).id)
-
-    {:ok, %{rows: [[supremum_id]]}} =
-      Repo.query("SELECT id FROM dagex_nodes WHERE ext_id = $1 AND node_type = $2", [
-        "*",
-        "type_as"
-      ])
-
-    {:ok, %{rows: [[node_id, path]]}} =
-      Repo.query(
-        "SELECT n.id, p.path FROM dagex_paths p JOIN dagex_nodes n ON p.node_id = n.id WHERE n.ext_id = $1",
-        [entity_id]
-      )
-
-    assert path == "#{supremum_id}.#{node_id}"
   end
 
   test "deleting an entity removes its node record" do
