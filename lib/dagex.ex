@@ -105,6 +105,9 @@ defmodule Dagex do
       iex> {:ok, bulldog} = %AnimalType{name: "Bulldog"} |> Repo.insert()
       iex> {:edge_created, _edge} = AnimalType.create_edge(dog, bulldog) |> Repo.dagex_update()
       iex>
+      iex> # returns an error if an edge insertion would create a cycle
+      iex> {:error, :cyclic_edge} = AnimalType.create_edge(bulldog, pet) |> Repo.dagex_update()
+      iex>
       iex> # we can get the direct children of a node:
       iex> children = AnimalType.children(animal) |> Repo.all()
       iex> assert_lists_equal(children, [pet, livestock])
