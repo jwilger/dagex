@@ -2,7 +2,7 @@ defmodule Dagex do
   @moduledoc ~S"""
   The `Dagex` library is used to allow your business entities to participate in
   directed, acyclic graphs backed by [PostgreSQL's ltree
-  extenstion](https://www.postgresql.org/docs/14/ltree.html).
+  extension](https://www.postgresql.org/docs/14/ltree.html).
 
   N.B. The callbacks defined in this module are automatically defined for you on
   your Ecto models when you `use Dagex` inside them.
