@@ -39,12 +39,12 @@ migration file:
 ```elixir
 defmodule MyApp.Repo.Migrations.AddDagexToProject do
   use Ecto.Migration
-  
+
   def up do
     Dagex.Migrations.up()
   end
-  
-  def down do 
+
+  def down do
     Dagex.Migrations.down()
   end
 end
@@ -52,23 +52,35 @@ end
 
 and then migrate your database with `mix ecto.migrate`.
 
-### 4. Use migrations to create db tables for the business entities that participate in a DAG:
+### 4. Set up ecto_ltree for your project
+
+[`ecto_ltree`](https://github.com/josemrb/ecto_ltree) is already included as a dependency with the above step, and activating the `ltree` extension happened in the Dagex migration above.
+
+However there are additional steps that `ecto_ltree` requires:
+
+
+1. [Define a type module with the Postgrex.Ltree custom extensions](https://github.com/josemrb/ecto_ltree#2-define-a-type-module-with-our-custom-extensions) e.g. in a new filed called `lib/postgrex_types.ex`
+
+2. [Configure the Repo to use the previously defined type module](https://github.com/josemrb/ecto_ltree#3-configure-the-repo-to-use-the-previously-defined-type-module)
+
+
+### 5. Use migrations to create db tables for the business entities that participate in a DAG:
 
 Run `mix ecto.gen.migration add_organizations` then edit the resulting migration
 file:
 
 ```elixir
-defmodule MyApp.Repo.Migrations.AddOrganizations do 
+defmodule MyApp.Repo.Migrations.AddOrganizations do
   require Dagex.Migrations
 
-  use Ecto.Migration 
-  
-  def change do 
+  use Ecto.Migration
+
+  def change do
     create table("organizations") do
       add :name, :string, null: false
       timestamps()
     end
-    
+
     # Adds triggers to the "organizations" table to maintain the associated DAG as
     # records are added/removed.
     Dagex.Migrations.setup_node_type("organizations", "3.0.0")
@@ -85,10 +97,10 @@ graph. You will see an `Ecto.ConstrainError` on the `dagex_reserved_supremum_id`
 constraint if you attempt to insert such a record.
 
 ```elixir
-defmodule MyApp.Organization do 
-  use Dagex 
+defmodule MyApp.Organization do
+  use Dagex
   use Ecto.Schema
-  
+
   schema "organizations" do
     field :name, :string
   end
