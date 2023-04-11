@@ -81,7 +81,7 @@ end
 N.B. You can use any column type that Postgresql can convert to text as the
 entity's primary key, however, if your primary key field is a string, you MUST
 NOT allow the value `"*"` as this is reserved internally for the supremum of the
-graph. You will see an `Ecto.ConstrainError` on the `dagex_reserved_supremum_id`
+graph. You will see an `Ecto.ConstraintError` on the `dagex_reserved_supremum_id`
 constraint if you attempt to insert such a record.
 
 ```elixir
